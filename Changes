@@ -1,0 +1,6 @@
+Revision history for Perl extension CGI::SessionM.
+
+2.00  Wed Mar  7 18:17:39 2007
+	- original version; created by h2xs 1.22 with options
+		-AX -n CGI::SessionM -v 2.00
+

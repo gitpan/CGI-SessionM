@@ -1,0 +1,217 @@
+NAME
+    CGI::SessionM - Module provides sessions support inside CGI-scripts.
+
+    À MySQL database is required for propertly functioning (DBI::mysql
+    driver).
+
+VERSION
+      Version 2.00
+      05.03.2007
+
+SYNOPSIS
+      #If your module SessionM.pm is located in another directory than @ISA array contains:
+      #use lib 'path to your lib'; 
+      use CGI::SessionM 2.00;
+
+      -- or --
+
+      # If your module SessionM.pm is located in another directory than @ISA array contains:
+      unshift(@INC,"path to your lib");
+      require CGI::SessionM;
+
+  Object $session creation
+      my $session = new CGI::SessionM(
+        -content=>'user data string',
+        -count=>5, # maximum count of unsuccessful 
+                   # attempt of password entering! (0 - endless attempts)
+        -forbidden=>10800, # blocking period after unsuccessful 
+                   # login in seconds (3 hours by default)
+        -time=>1200, # session life time, in seconds after last 
+                   # access to a page (20 minutes by default)
+        -db=>'database name',
+        -login=>'database username',
+        -password=>'database password',
+        -host=>'database server', # is empty by default
+        -table=>'tablename for working with sessions data' 
+                   # "sessionm" by default
+      );
+
+  Authorization
+    First stage. Authorization
+
+      my ($err, @authdata) = $session->authorize($login, (<$password eq '********'>), $content);
+
+      $login - autorizing user login.
+      The expression (<$password eq '********'>) returns "true" 
+      if entered password is correct!
+      $content - user data string.
+      $err - value returned by function (return code/error). 
+      See the errors description in ERRORS chapter.
+      @authdata - processed data. See details in DESCRIPTION chapter.
+
+  Validation
+    Second stage. Session validating.
+
+      my ($err, @authdata) = $session->validate($GUIDM);
+
+      $GUIDM - GUIGM of session. This value passes from one 
+      page to another on the site.
+      $err - value returned by function (return code/error). 
+      See the errors description in ERRORS chapter.
+      @authdata - processed data. See details in DESCRIPTION chapter.
+
+  LOGOUT
+    Third stage. Session cancelling.
+
+      my $err = $session->logout($GUIDM);
+
+      $GUIDM - GUIGM of session. This value passes from one 
+      page to another on the site.
+      $err - value returned by function (return code/error). 
+      See the errors description in ERRORS chapter.
+
+  Table creation
+    Table creation in database for working with sessions.
+
+      my ($err, $tablename) = $session->create_table();
+
+      Be attentive! This function is relates to DDL queries class.
+      $err - value returned by function (return code/error). 
+      See the errors description in ERRORS chapter.
+      $tablename - name of table to create.
+
+  Userdata updating
+    Userdata updating.
+
+      my $err = $session->logout($GUIDM);
+      $GUIDM - GUIGM of session. This value passes from one
+      page to another on the site.
+      $err - value returned by function (return code/error). 
+      See the errors description in ERRORS chapter.
+
+  VALUES
+    Getting of class property of $session object.
+
+      print $session->echo(<key>)
+
+      <key> - one of the enumeration: 
+       maxcnt,timeout,timedie,content,guidm,login,dt,id,cnt,table
+
+  ERRORS
+    Getting error description.
+
+    $session->echoerr($err);
+
+    The function returns description of result's value of procedures in
+    variable $err.
+
+DESCRIPTION
+    IP-address of database server can be used as server name, e.g.
+    127.0.0.1. For non-standard port just add ";port=1234" after server name
+    (1234 is example of port number). So the complete string will be
+    -host=>"127.0.0.1;port=1234"
+
+    Authorize method takes "true" (non-0) and "false" (0) values as second
+    parameter. For "true" value session will be created without error
+    generation. Elsewise session will be created with error #1. See the
+    errors description in ERRORS chapter.
+
+    Most of methods return session data in such sequence:
+
+    id      identifier of record in table
+
+    guidm   session identifier
+
+    ip      IP address
+
+    dt      session lifetime
+
+    login   user login entered for authorization
+
+    cnt     count of attempts to eneter password
+
+    content user data
+
+    You need to care for pass GUIDM value (result of authorize method) from
+    one page to another. It can be cookies operating or keeping GUIDM in
+    GET/POST queries.
+
+  Simple example
+    my ($err,@authdata) = $session->authorize($login, $password eq 'sample'
+    , join "||", qw/primer dannyh polzowatelja/);
+
+    my $guidm = $authdata[1] || '';
+
+    ...
+
+    my ($err,@authdata) = $session->validate($guidm);
+
+    my $guidm = $authdata[1] || '';
+
+    ...
+
+      if ($err == 0) {
+         print "Set-Cookie: guidm=$guidm;\n";
+      } else {
+        if ($err == 1) {
+          $error = session->echoerr($err)." (attempt $authdata[0] of $authdata[1])";
+        } elsif($err == 4) {
+          $error = session->echoerr($err)." (service is not available till $authdata[0])";
+        } elsif($err == 6) {
+          $error = session->echoerr($err)." \{$authdata[0]\}";
+        } else {
+          $error = session->echoerr($err);
+        }
+      }
+
+  SQL: Creation table
+       CREATE TABLE sessionm (
+          id INT(11) default NULL auto_increment,
+          guidm char(39) default NULL,
+          ip char(255) default NULL,
+          dt INT(11) default NULL,
+          login char(255) default NULL,
+          cnt int(5) default NULL,
+          content text default NULL,
+          UNIQUE KEY (login),
+          PRIMARY KEY (id))
+
+  ERROR description
+    0 OK (<DATA_ARRAY>) - Success. Methos returned array: <DATA_ARRAY>
+
+    1 PASSWORD INCORRECT (<Attemption>,<Permissible>) - Password is
+    incorrect. Attemption <Attemption> of permissible <Permissible>.
+
+    2 LOGIN INCORRECT () - Login is incorrect
+
+    3 GUIDM INCORRECT () - Incorrect GUIDM
+
+    4 FORBIDDEN (<Time>) - Access denies until <Time>
+
+    5 SESSION LOST () - Lost connection.
+
+    6 SESSION EXPIRED (<GUIDM>) - Lifetime <GUIDM> is over.
+
+    7 UPDATE DONE () - Userdata is updated.
+
+    8 TABLE CREATED (<TableName>) - Table <TableName> created.
+
+    9 LOGOUT DONE () - User is cancelled session
+
+DIAGNOSTICS
+    The usual warnings if it cannot read or write the files involved.
+
+HISTORY
+    2.00 Initial release
+
+THANKS
+    Thanks to Dmitry Klimov for technical translating.
+
+AUTHOR
+    Lepenkov Sergey (Serz Minus), "minus@mail333.com"
+
+COPYRIGHTS
+    Copyright (C) 1998-2007 Lepenkov Sergej (Serz Minus) "minus@mail333.com"
+
+    Copyright (C) 1998-2007 D&D Corporation. All Rights Reserved
+
